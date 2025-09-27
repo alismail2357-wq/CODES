@@ -1,0 +1,21 @@
+' --- Fonction Clean : garder les espaces, remplacer - par espace ---
+Function Clean(txt As String) As String
+    Dim t As String
+    t = LCase(txt)                  ' tout en minuscules
+    t = Replace(t, "-", " ")        ' remplacer - par espace
+    t = Replace(t, "/", "")         ' supprimer les slashs
+    t = Replace(t, "é", "e")        ' remplacer é par e
+    Clean = t
+End Function
+
+
+' --- Fonction CleanEA : comme Clean mais en plus ignorer les apostrophes ---
+Function CleanEA(txt As String) As String
+    Dim t As String
+    t = LCase(txt)                  ' tout en minuscules
+    t = Replace(t, "-", " ")        ' remplacer - par espace
+    t = Replace(t, "/", "")         ' supprimer les slashs
+    t = Replace(t, "'", "")         ' supprimer les apostrophes
+    t = Replace(t, "é", "e")        ' remplacer é par e
+    CleanEA = t
+End Function
