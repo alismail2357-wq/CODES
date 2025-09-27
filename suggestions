@@ -1,0 +1,44 @@
+// ✅ correct sentences
+const correctSentences = [
+  "Hello, how are you?",
+  "I love JavaScript.",
+  "This is an autocomplete test.",
+  "Have a nice day!",
+];
+
+const input = document.querySelector("#userInput"); // adjust selector
+let currentSuggestion = "";
+
+input.addEventListener("input", () => {
+  const val = input.value.toLowerCase();
+  currentSuggestion = "";
+
+  if (!val) {
+    input.setAttribute("placeholder", "");
+    return;
+  }
+
+  // find the first sentence that contains what user typed (anywhere)
+  const match = correctSentences.find(s =>
+    s.toLowerCase().includes(val)
+  );
+
+  if (match) {
+    // full sentence as suggestion
+    currentSuggestion = match;
+    // ghost suggestion: show the full match (not just the remainder)
+    input.setAttribute("placeholder", currentSuggestion);
+  } else {
+    input.setAttribute("placeholder", "");
+  }
+});
+
+// Tab → accept suggestion
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && currentSuggestion) {
+    e.preventDefault();
+    input.value = currentSuggestion; // replace with full sentence
+    currentSuggestion = "";
+    input.setAttribute("placeholder", "");
+  }
+});
