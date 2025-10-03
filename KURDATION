@@ -1,0 +1,99 @@
+'-------------------------------
+' Function to clean text:
+' - lowercase
+' - replace accented characters
+' - remove special characters
+'-------------------------------
+Function CleanText(txt As String) As String
+    Dim cleaned As String
+    Dim i As Integer
+    Dim ch As String
+    
+    cleaned = LCase(txt)
+    
+    ' Replace accented characters
+    cleaned = Replace(cleaned, "é", "e")
+    cleaned = Replace(cleaned, "è", "e")
+    cleaned = Replace(cleaned, "ê", "e")
+    cleaned = Replace(cleaned, "à", "a")
+    cleaned = Replace(cleaned, "á", "a")
+    cleaned = Replace(cleaned, "â", "a")
+    cleaned = Replace(cleaned, "ç", "c")
+    cleaned = Replace(cleaned, "ô", "o")
+    cleaned = Replace(cleaned, "ö", "o")
+    cleaned = Replace(cleaned, "ù", "u")
+    cleaned = Replace(cleaned, "û", "u")
+    cleaned = Replace(cleaned, "ü", "u")
+    cleaned = Replace(cleaned, "í", "i")
+    cleaned = Replace(cleaned, "ï", "i")
+    cleaned = Replace(cleaned, "ñ", "n")
+    
+    ' Remove all non-alphanumeric characters
+    Dim result As String
+    result = ""
+    
+    For i = 1 To Len(cleaned)
+        ch = Mid(cleaned, i, 1)
+        If ch Like "[a-z0-9]" Then
+            result = result & ch
+        End If
+    Next i
+    
+    CleanText = result
+End Function
+
+'-------------------------------
+' Compare cleaned cell values
+'-------------------------------
+Function CompareColumns(cell1 As Range, cell2 As Range) As Boolean
+    Dim text1 As String, text2 As String
+    
+    text1 = CleanText(cell1.Value)
+    text2 = CleanText(cell2.Value)
+    
+    CompareColumns = (text1 = text2)
+End Function
+
+'-------------------------------
+' MAIN MACRO: Color the columns
+' Logic:
+' - If T ≠ "Algeria" and ≠ "DZ" → Blue
+' - Else, compare U & V:
+'     - if match → Green
+'     - if not → Gold
+'-------------------------------
+Sub ColorCompareColumns()
+    Dim lastRow As Long
+    Dim i As Long
+    Dim cellU As Range, cellV As Range, cellT As Range
+    Dim valT As String
+    
+    ' Find the last row used in U, V or T
+    lastRow = Application.WorksheetFunction.Max( _
+        Cells(Rows.Count, "U").End(xlUp).Row, _
+        Cells(Rows.Count, "V").End(xlUp).Row, _
+        Cells(Rows.Count, "T").End(xlUp).Row)
+    
+    ' Loop through each row
+    For i = 1 To lastRow
+        Set cellU = Cells(i, "U")
+        Set cellV = Cells(i, "V")
+        Set cellT = Cells(i, "T")
+        
+        valT = LCase(Trim(cellT.Value))
+        
+        If valT <> "algeria" And valT <> "dz" Then
+            ' BLUE if T ≠ "algeria" and ≠ "dz"
+            cellU.Interior.Color = RGB(0, 112, 192)   ' Blue
+            cellV.Interior.Color = RGB(0, 112, 192)
+        ElseIf CompareColumns(cellU, cellV) Then
+            ' GREEN if T is "algeria" or "dz" AND match
+            cellU.Interior.Color = RGB(144, 238, 144) ' Light green
+            cellV.Interior.Color = RGB(144, 238, 144)
+        Else
+            ' GOLD if T is "algeria" or "dz" AND no match
+            cellU.Interior.Color = RGB(255, 215, 0)   ' Gold
+            cellV.Interior.Color = RGB(255, 215, 0)
+        End If
+    Next i
+End Sub
