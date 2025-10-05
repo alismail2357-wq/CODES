@@ -1,0 +1,126 @@
+Sub ColorCompareColumns()
+    Dim lastRow As Long
+    Dim i As Long
+    Dim valT As String
+    Dim valN As Variant
+    Dim cellU As Range, cellV As Range, cellT As Range, cellN As Range
+    Dim freqDict As Object
+    Dim repeatValues As Object
+
+    Set freqDict = CreateObject("Scripting.Dictionary")
+    Set repeatValues = CreateObject("Scripting.Dictionary")
+
+    ' Performance optimization
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
+
+    ' Find last used row in columns U, V, T, and N
+    lastRow = Application.WorksheetFunction.Max( _
+        Cells(Rows.Count, "U").End(xlUp).Row, _
+        Cells(Rows.Count, "V").End(xlUp).Row, _
+        Cells(Rows.Count, "T").End(xlUp).Row, _
+        Cells(Rows.Count, "N").End(xlUp).Row)
+
+    ' STEP 1: Count values in Column N, ignoring empty/whitespace
+    For i = 1 To lastRow
+        Set cellN = Cells(i, "N")
+        valN = Trim(UCase(cellN.Value))
+        If valN <> "" Then
+            If freqDict.exists(valN) Then
+                freqDict(valN) = freqDict(valN) + 1
+            Else
+                freqDict.Add valN, 1
+            End If
+        End If
+    Next i
+
+    ' STEP 2: Identify values appearing more than 5 times
+    For Each valN In freqDict.Keys
+        If freqDict(valN) > 5 Then
+            repeatValues.Add valN, True
+        End If
+    Next valN
+
+    ' STEP 3: Color Column N values that repeat > 5 times, clear others
+    For i = 1 To lastRow
+        Set cellN = Cells(i, "N")
+        valN = Trim(UCase(cellN.Value))
+        If valN <> "" And repeatValues.exists(valN) Then
+            cellN.Interior.Color = RGB(144, 238, 144) ' Light green
+        Else
+            cellN.Interior.ColorIndex = xlColorIndexNone ' Clear fill if no repeat or empty
+        End If
+    Next i
+
+    ' STEP 4: Compare U and V based on value of T
+    For i = 1 To lastRow
+        Set cellT = Cells(i, "T")
+        Set cellU = Cells(i, "U")
+        Set cellV = Cells(i, "V")
+
+        valT = LCase(Trim(cellT.Value))
+
+        If valT <> "algeria" And valT <> "dz" And valT <> "algérie" Then
+            ' Blue if T ≠ "algeria", "dz" or "algérie"
+            cellU.Interior.Color = RGB(0, 112, 192)
+            cellV.Interior.Color = RGB(0, 112, 192)
+        ElseIf CompareColumns(cellU, cellV) Then
+            ' Green if T is "algeria", "dz" or "algérie" AND match
+            cellU.Interior.Color = RGB(144, 238, 144)
+            cellV.Interior.Color = RGB(144, 238, 144)
+        Else
+            ' Gold if T is "algeria", "dz" or "algérie" AND no match
+            cellU.Interior.Color = RGB(255, 215, 0)
+            cellV.Interior.Color = RGB(255, 215, 0)
+        End If
+    Next i
+
+    ' Restore settings
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.Calculation = xlCalculationAutomatic
+End Sub
+
+' Function to clean and normalize text
+Function CleanText(txt As String) As String
+    Dim cleaned As String
+    Dim i As Long
+    Dim ch As String
+
+    cleaned = LCase(txt)
+
+    ' Replace accented characters
+    cleaned = Replace(cleaned, "é", "e")
+    cleaned = Replace(cleaned, "è", "e")
+    cleaned = Replace(cleaned, "ê", "e")
+    cleaned = Replace(cleaned, "à", "a")
+    cleaned = Replace(cleaned, "á", "a")
+    cleaned = Replace(cleaned, "â", "a")
+    cleaned = Replace(cleaned, "ç", "c")
+    cleaned = Replace(cleaned, "ô", "o")
+    cleaned = Replace(cleaned, "ö", "o")
+    cleaned = Replace(cleaned, "ù", "u")
+    cleaned = Replace(cleaned, "û", "u")
+    cleaned = Replace(cleaned, "ü", "u")
+    cleaned = Replace(cleaned, "í", "i")
+    cleaned = Replace(cleaned, "ï", "i")
+    cleaned = Replace(cleaned, "ñ", "n")
+
+    ' Remove non-alphanumeric characters
+    Dim result As String
+    result = ""
+    For i = 1 To Len(cleaned)
+        ch = Mid(cleaned, i, 1)
+        If ch Like "[a-z0-9]" Then
+            result = result & ch
+        End If
+    Next i
+
+    CleanText = result
+End Function
+
+' Function to compare cleaned values of two cells
+Function CompareColumns(cell1 As Range, cell2 As Range) As Boolean
+    CompareColumns = (CleanText(cell1.Value) = CleanText(cell2.Value))
+End Function
