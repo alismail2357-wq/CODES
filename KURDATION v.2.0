@@ -1,0 +1,168 @@
+Sub ColorCompareWithFixedPath()
+    Dim originSheet As Worksheet
+    Dim wbExternal As Workbook
+    Dim greenSheet As Worksheet
+    Dim filePath As String
+    Dim lastRow As Long, greenLastRow As Long
+    Dim i As Long
+    Dim cleanedU As String, cleanedV As String
+    Dim greenKey As String
+    Dim approvedPairs As Object
+    Dim freqDict As Object, repeatedValues As Object
+    Dim cellU As Range, cellV As Range, cellT As Range, cellN As Range
+    Dim valT As String, valN As String
+
+    ' Initialize dictionaries
+    Set approvedPairs = CreateObject("Scripting.Dictionary")
+    Set freqDict = CreateObject("Scripting.Dictionary")
+    Set repeatedValues = CreateObject("Scripting.Dictionary")
+
+    Set originSheet = ThisWorkbook.Sheets(1) ' Adjust if your data is on a different sheet
+
+    ' FIXED file path here — update to your colleague’s actual full file path:
+    filePath = "C:\Users\ali.smail\Downloads\adresse.xlsx"
+
+    ' Check if the file exists
+    If Dir(filePath) = "" Then
+        MsgBox "?? File not found: " & filePath, vbCritical
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
+
+    On Error GoTo ErrHandler
+
+    ' Open the external workbook read-only
+    Set wbExternal = Workbooks.Open(filePath, ReadOnly:=True)
+    Set greenSheet = wbExternal.Sheets(1)
+
+    greenLastRow = greenSheet.Cells(greenSheet.Rows.Count, "A").End(xlUp).Row
+
+    ' Load approved (U,V) pairs from adresse.xlsx into dictionary
+    For i = 1 To greenLastRow
+        cleanedU = CleanText(Trim(greenSheet.Cells(i, "A").Value))
+        cleanedV = CleanText(Trim(greenSheet.Cells(i, "B").Value))
+        greenKey = cleanedU & "|" & cleanedV
+        If cleanedU <> "" And cleanedV <> "" Then
+            approvedPairs(greenKey) = True
+        End If
+    Next i
+
+    wbExternal.Close SaveChanges:=False
+
+    ' Find last row in main sheet based on columns N, U, V, T
+    lastRow = originSheet.Cells(originSheet.Rows.Count, "N").End(xlUp).Row
+    If originSheet.Cells(originSheet.Rows.Count, "U").End(xlUp).Row > lastRow Then lastRow = originSheet.Cells(originSheet.Rows.Count, "U").End(xlUp).Row
+    If originSheet.Cells(originSheet.Rows.Count, "V").End(xlUp).Row > lastRow Then lastRow = originSheet.Cells(originSheet.Rows.Count, "V").End(xlUp).Row
+    If originSheet.Cells(originSheet.Rows.Count, "T").End(xlUp).Row > lastRow Then lastRow = originSheet.Cells(originSheet.Rows.Count, "T").End(xlUp).Row
+
+    ' Count frequency of values in column N
+    For i = 1 To lastRow
+        valN = Trim(UCase(originSheet.Cells(i, "N").Value))
+        If valN <> "" Then
+            If freqDict.Exists(valN) Then
+                freqDict(valN) = freqDict(valN) + 1
+            Else
+                freqDict.Add valN, 1
+            End If
+        End If
+    Next i
+
+    ' Collect values in N that repeat 2 or more times
+    Dim k As Variant
+    For Each k In freqDict.Keys
+        If freqDict(k) >= 2 Then
+            repeatedValues(k) = True
+        End If
+    Next k
+
+    ' Color cells in column N that repeat
+    For i = 1 To lastRow
+        Set cellN = originSheet.Cells(i, "N")
+        valN = Trim(UCase(cellN.Value))
+        If valN <> "" And repeatedValues.Exists(valN) Then
+            cellN.Interior.Color = RGB(144, 238, 144) ' Light green
+        Else
+            cellN.Interior.ColorIndex = xlColorIndexNone ' No fill
+        End If
+    Next i
+
+    ' Color columns U and V according to logic
+    For i = 1 To lastRow
+        Set cellU = originSheet.Cells(i, "U")
+        Set cellV = originSheet.Cells(i, "V")
+        Set cellT = originSheet.Cells(i, "T")
+
+        cleanedU = CleanText(Trim(cellU.Value))
+        cleanedV = CleanText(Trim(cellV.Value))
+        greenKey = cleanedU & "|" & cleanedV
+        valT = LCase(Trim(cellT.Value))
+
+        If approvedPairs.Exists(greenKey) Then
+            ' Green if pair found in adresse.xlsx
+            cellU.Interior.Color = RGB(144, 238, 144)
+            cellV.Interior.Color = RGB(144, 238, 144)
+        ElseIf valT <> "algeria" And valT <> "dz" And valT <> "algérie" Then
+            ' Blue if T not Algeria/DZ/Algérie
+            cellU.Interior.Color = RGB(0, 112, 192)
+            cellV.Interior.Color = RGB(0, 112, 192)
+        ElseIf cleanedU = cleanedV Then
+            ' Green if T is Algeria/DZ/Algérie and U=V
+            cellU.Interior.Color = RGB(144, 238, 144)
+            cellV.Interior.Color = RGB(144, 238, 144)
+        Else
+            ' Gold otherwise
+            cellU.Interior.Color = RGB(255, 215, 0)
+            cellV.Interior.Color = RGB(255, 215, 0)
+        End If
+    Next i
+
+CleanUp:
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.Calculation = xlCalculationAutomatic
+
+    MsgBox "Done coloring cells!"
+
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Error: " & Err.Description, vbCritical
+    Resume CleanUp
+End Sub
+
+Function CleanText(txt As String) As String
+    Dim cleaned As String
+    Dim i As Long, ch As String
+    cleaned = LCase(txt)
+
+    cleaned = Replace(cleaned, "é", "e")
+    cleaned = Replace(cleaned, "è", "e")
+    cleaned = Replace(cleaned, "ê", "e")
+    cleaned = Replace(cleaned, "à", "a")
+    cleaned = Replace(cleaned, "?", "a")
+    cleaned = Replace(cleaned, "â", "a")
+    cleaned = Replace(cleaned, "ç", "c")
+    cleaned = Replace(cleaned, "ô", "o")
+    cleaned = Replace(cleaned, "?", "o")
+    cleaned = Replace(cleaned, "ù", "u")
+    cleaned = Replace(cleaned, "û", "u")
+    cleaned = Replace(cleaned, "ü", "u")
+    cleaned = Replace(cleaned, "?", "i")
+    cleaned = Replace(cleaned, "ï", "i")
+    cleaned = Replace(cleaned, "?", "n")
+
+    Dim result As String
+    result = ""
+    For i = 1 To Len(cleaned)
+        ch = Mid(cleaned, i, 1)
+        If ch Like "[a-z0-9]" Then
+            result = result & ch
+        End If
+    Next i
+
+    CleanText = result
+End Function
+
